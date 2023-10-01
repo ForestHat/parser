@@ -10,7 +10,7 @@ use select::predicate::{Class, Name, Predicate};
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut file = File::create("news.txt").expect("Error! File not created");
     for page in 25..50 {
-        let page: String = "https://habr.com/ru/news/page".to_owned() + &i.to_string();
+        let page: String = "https://habr.com/ru/news/page".to_owned() + &page.to_string();
         
         // Getting a page from the Internet
         let resp = reqwest::get(&page).await.unwrap();
