@@ -1,30 +1,38 @@
 extern crate reqwest;
 extern crate select;
 
+use std::fs::File;
+use std::io::Write;
 use select::document::Document;
 use select::predicate::{Class, Name, Predicate};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Getting a page from the Internet
-    let resp = reqwest::get("https://habr.com/ru/news/").await.unwrap();
-    let document = Document::from(resp.text().await.unwrap().as_str());
-
-    // Extract the news
-    for node in document.find(Class("tm-articles-list__item")) {
-        // Get the text of one news from <span> block
-        let news = node.find(Class("tm-title__link").descendant(Name("span")))
-            .next()
-            .unwrap()
-            .text();
-
-        println!("{}", news);
+    let mut file = File::create("news.txt").expect("Error! File not created");
+    for page in 25..50 {
+        let page: String = "https://habr.com/ru/news/page".to_owned() + &i.to_string();
         
-        // Get the URL address from block of html
-        let url = node.find(Class("tm-title__link")).next().unwrap();
-
-        println!("https://habr.com{}\n", url.attr("href").unwrap());
+        // Getting a page from the Internet
+        let resp = reqwest::get(&page).await.unwrap();
+        let document = Document::from(resp.text().await.unwrap().as_str());
+    
+        // Extract the news
+        for node in document.find(Class("tm-articles-list__item")) {
+            // Get the text of one news from <span> block
+            let news = node.find(Class("tm-title__link").descendant(Name("span")))
+                .next()
+                .unwrap()
+                .text();
+    
+            println!("{}", news);
+            
+            let news_to_file: &str = &(news + "\n");
+            file.write_all(news_to_file.as_bytes()).unwrap();
+            
+            // Get the URL address from block of html
+            let url = node.find(Class("tm-title__link")).next().unwrap();
+            println!("https://habr.com{}\n", url.attr("href").unwrap());
+        }
     }
-
     Ok(())
 }
