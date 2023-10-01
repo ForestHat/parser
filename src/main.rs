@@ -27,7 +27,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("{}", news);
             
             let news_to_file: &str = &(news + "\n");
-            file.write_all(news_to_file.as_bytes()).unwrap();
+            file.write_all(news_to_file.as_bytes()).expect("Problem with writing in file!");
             
             // Get the URL address from block of html
             let url = node.find(Class("tm-title__link")).next().unwrap();
