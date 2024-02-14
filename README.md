@@ -5,5 +5,5 @@ This parser get news from habr.com
 To compile this project run
 
 ```bash
- cargo run
+ cargo build --release
 ```
