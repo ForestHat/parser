@@ -3,48 +3,60 @@ use select::predicate::{Class, Name, Predicate};
 use std::process::Command;
 use std::thread;
 
+
 #[tokio::main]
 async fn main() {
-    let resp = reqwest::get("https://habr.com/ru/news/").await.unwrap();
-    let doc = Document::from(resp.text().await.unwrap().as_str());
+    loop {
+        clear_database();
 
-    let mut news_vector: Vec<String> = Vec::new();
-    let mut url_vector: Vec<String> = Vec::new();
-    
-    let mut size: usize = 0;
+        let resp = reqwest::get("https://habr.com/ru/news/").await.expect("Error while parsing site");
+        let doc = Document::from(resp.text().await.expect("Error get text!").as_str());
 
-    for node in doc.find(Class("tm-articles-list__item")) {
-        let news: String = node.find(Class("tm-title__link").descendant(Name("span"))).next().unwrap().text();
-        news_vector.push(news);
+        let mut news_vector: Vec<String> = Vec::new();
+        let mut url_vector: Vec<String> = Vec::new();
+        
+        let mut size: usize = 0;
 
-        let url: String = node.find(Class("tm-title__link")).next().unwrap().attr("href").unwrap().to_string();
-        url_vector.push(String::from("https://habr.com") + &url);
+        for node in doc.find(Class("tm-articles-list__item")) {
+            let news: String = node.find(Class("tm-title__link").descendant(Name("span"))).next().expect("Error while parsing site").text();
+            news_vector.push(news);
 
-        size += 1;
-    }
+            let url: String = node.find(Class("tm-title__link")).next()
+                .expect("Error while parsing site").attr("href").expect("Error while parsing site").to_string();
 
-    let mut handles = Vec::new();
+            url_vector.push(String::from("https://habr.com") + &url);
 
-    for i in 0..size {
-        let news: String = news_vector.get(i).unwrap().to_string();
-        let url: String = url_vector.get(i).unwrap().to_string();
+            size += 1;
+        }
 
-        let handle = thread::spawn(move || {
-            run_cmd(news, url);
-        });
+        let mut handles = Vec::new();
 
-        handles.push(handle);
-    }
+        for i in 0..size {
+            let news: String = news_vector.get(i).expect("Error get").to_string();
+            let url: String = url_vector.get(i).expect("Error get").to_string();
 
-    for handle in handles {
-        handle.join().unwrap();
+            let handle = thread::spawn(move || {
+                add_to_database(i, news, url);
+            });
+
+            handles.push(handle);
+        }
+
+        for handle in handles {
+            handle.join().expect("Error handle");
+        }
+
+        std::thread::sleep(std::time::Duration::from_secs(600));
     }
 }
 
-fn run_cmd(news: String, url: String) {
-    let exec: String = String::from("python3");
-    let output = Command::new(exec).args(&["main.py", &news]).output().unwrap();
+fn add_to_database(index: usize, title: String, url: String) {
+    let output = Command::new(String::from("python3")).args(&["main.py", &title]).output().expect("Can't run ai");
     let out = String::from_utf8_lossy(&output.stdout);
+    
+    Command::new("./main").args(&["-index", &index.to_string(), "-title", &title, "-url", &url, "-theme", &out.replace("\n", "")]).output().expect("Can't add to database");
+}
 
-    println!("{}    {}    {}", news, out.replace("\n", ""), url);
+fn clear_database() {
+    Command::new("./main").args(&["-clear"]).output().expect("Can't clear the database!");
 }
